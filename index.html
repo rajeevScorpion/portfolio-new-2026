@@ -11,13 +11,6 @@
     <meta name="keywords" content="Rajeev Kumar, Communication Design, Typography, UX UI Design, 3D Design, Web Development, Portfolio" />
     <meta name="author" content="Rajeev Kumar" />
     <meta name="theme-color" content="#0ea5e9" />
-    <link rel="canonical" href="#" />
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="Rajeev Kumar | Communication Designer" />
-    <meta property="og:description" content="Exploring the intersection of design and technology." />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://picsum.photos/seed/rajeev/1200/630" />
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,9 +18,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script>
-      // Global process shim for environments that don't inject process.env (like static Vercel deploys)
-      // This prevents the 'process is not defined' error which causes white screens.
-      window.process = window.process || { env: {} };
+      // Initialize process environment shim immediately
+      window.process = { env: { API_KEY: "" } };
       
       tailwind.config = {
         darkMode: 'class',
@@ -58,39 +50,35 @@
         font-family: 'Inter', sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        margin: 0;
       }
-      ::selection {
-        background: #0ea5e9;
-        color: white;
+      .reveal {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
       }
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-      /* Focus visible styles for accessibility */
-      :focus-visible {
-        outline: 2px solid #0ea5e9;
-        outline-offset: 4px;
+      .reveal.opacity-100 {
+        opacity: 1;
+        transform: translateY(0);
       }
     </style>
     <script type="importmap">
-    {
-      "imports": {
-        "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
-        "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-        "react/": "https://esm.sh/react@^19.2.3/",
-        "react": "https://esm.sh/react@^19.2.3",
-        "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
-      }
-    }
-    </script>
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.469.0?external=react",
+    "@google/genai": "https://esm.sh/@google/genai@1.3.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
+  }
+}
+</script>
   </head>
   <body class="bg-white dark:bg-black transition-colors duration-300 antialiased overflow-x-hidden">
     <div id="root"></div>
-    <!-- Explicitly load the entry point module -->
+    <!-- Module script is deferred by default -->
     <script type="module" src="./index.tsx"></script>
   </body>
 </html>
