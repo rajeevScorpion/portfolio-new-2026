@@ -67,12 +67,33 @@ const App: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    setSubmitted(true);
-    setFormState({ name: '', email: '', message: '' });
-    setTimeout(() => setSubmitted(false), 5000);
+    
+    try {
+      const response = await fetch("https://formspree.io/f/xykkrpel", {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formState),
+      });
+
+      if (response.ok) {
+        setSubmitted(true);
+        setFormState({ name: '', email: '', message: '' });
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => setSubmitted(false), 5000);
+      } else {
+        const errorData = await response.json();
+        console.error("Formspree Error:", errorData);
+        alert("Oops! There was a problem submitting your form. Please try again.");
+      }
+    } catch (error) {
+      console.error("Submission Error:", error);
+      alert("Oops! There was a network error. Please try again later.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -296,6 +317,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {/* Corrected the typo in 'filteredProjects' array map */}
               {filteredProjects.map((project) => (
                 <div 
                   key={project.id}

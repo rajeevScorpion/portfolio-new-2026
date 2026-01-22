@@ -4,8 +4,9 @@ import { Inspiration } from "../types";
 
 export const getDesignInspiration = async (): Promise<Inspiration> => {
   try {
-    // Initializing inside the function to avoid early ReferenceErrors with process.env
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
+    // Initializing inside the function to ensure the API client is created with the current process.env.API_KEY
+    // Always use new GoogleGenAI({ apiKey: process.env.API_KEY })
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -23,9 +24,10 @@ export const getDesignInspiration = async (): Promise<Inspiration> => {
       }
     });
 
-    const text = response.text?.trim();
+    // Extracting text output directly using the .text property (not a method) as per guidelines
+    const text = response.text;
     if (text) {
-      return JSON.parse(text);
+      return JSON.parse(text.trim());
     }
     throw new Error("Empty response");
   } catch (error) {
