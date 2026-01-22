@@ -25,6 +25,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script>
+      // Global process shim for environments that don't inject process.env (like static Vercel deploys)
+      // This prevents the 'process is not defined' error which causes white screens.
+      window.process = window.process || { env: {} };
+      
       tailwind.config = {
         darkMode: 'class',
         theme: {
@@ -86,5 +90,7 @@
   </head>
   <body class="bg-white dark:bg-black transition-colors duration-300 antialiased overflow-x-hidden">
     <div id="root"></div>
+    <!-- Explicitly load the entry point module -->
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>
