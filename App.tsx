@@ -1,12 +1,29 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Sun, Moon, Palette, Layers, Box, Code, ChevronRight, Mail, Instagram, Linkedin, Twitter, Sparkles, Menu, X, Send, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Sun, Moon, Palette, Layers, Box, Code, ChevronRight, Mail, Instagram, Linkedin, Twitter, Sparkles, Menu, X, Send, CheckCircle2, ArrowLeft, Maximize2, MessageCircle } from 'lucide-react';
 import { SKILLS, PROJECTS, HOBBIES } from './constants';
 import { getDesignInspiration } from './services/geminiService';
 import { Project, Inspiration } from './types';
 
-// Define the available categories for filtering projects
 const categories = ['All', 'Typography', 'UX/UI', '3D Design', 'Web Development'];
+
+const Lightbox: React.FC<{ imageUrl: string; onClose: () => void }> = ({ imageUrl, onClose }) => {
+  return (
+    <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out" onClick={onClose}>
+      <button 
+        className="absolute top-8 right-8 text-white/50 hover:text-white transition-colors"
+        onClick={onClose}
+      >
+        <X size={32} />
+      </button>
+      <img 
+        src={imageUrl} 
+        alt="Zoomed project image" 
+        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-in zoom-in duration-300" 
+      />
+    </div>
+  );
+};
 
 const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState(true);
@@ -15,6 +32,8 @@ const App: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [inspiration, setInspiration] = useState<Inspiration | null>(null);
   const [loadingInspiration, setLoadingInspiration] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Form State
   const [formState, setFormState] = useState({ name: '', email: '', message: '' });
@@ -22,6 +41,10 @@ const App: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
+
+  const selectedProject = useMemo(() => 
+    PROJECTS.find(p => p.id === selectedProjectId), 
+  [selectedProjectId]);
 
   const navLinks = [
     { label: 'Work', href: '#work', id: 'work' },
@@ -31,12 +54,23 @@ const App: React.FC = () => {
   ];
 
   const handleNavClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    if (selectedProjectId) {
+      setSelectedProjectId(null);
+      setTimeout(() => {
+        const element = document.getElementById(id);
+        if (element) {
+          window.scrollTo({ top: element.offsetTop - 80, behavior: 'smooth' });
+        }
+      }, 100);
+      return;
+    }
+
     e.preventDefault();
     const element = document.getElementById(id);
     if (element) {
       setIsMenuOpen(false);
       setActiveSection(id);
-      const offset = 80; // height of the fixed header
+      const offset = 80;
       const bodyRect = document.body.getBoundingClientRect().top;
       const elementRect = element.getBoundingClientRect().top;
       const elementPosition = elementRect - bodyRect;
@@ -47,7 +81,22 @@ const App: React.FC = () => {
         behavior: 'smooth'
       });
     }
-  }, []);
+  }, [selectedProjectId]);
+
+  const openProject = (id: string) => {
+    setSelectedProjectId(id);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  const closeProject = () => {
+    setSelectedProjectId(null);
+    setTimeout(() => {
+      const workSection = document.getElementById('work');
+      if (workSection) {
+        window.scrollTo({ top: workSection.offsetTop - 80, behavior: 'instant' });
+      }
+    }, 0);
+  };
 
   const filteredProjects = activeCategory === 'All' 
     ? PROJECTS 
@@ -67,37 +116,29 @@ const App: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
     try {
       const response = await fetch("https://formspree.io/f/xykkrpel", {
         method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-        },
+        headers: { "Accept": "application/json", "Content-Type": "application/json" },
         body: JSON.stringify(formState),
       });
-
       if (response.ok) {
         setSubmitted(true);
         setFormState({ name: '', email: '', message: '' });
-        // Auto-hide success message after 5 seconds
         setTimeout(() => setSubmitted(false), 5000);
       } else {
-        const errorData = await response.json();
-        console.error("Formspree Error:", errorData);
-        alert("Oops! There was a problem submitting your form. Please try again.");
+        alert("Oops! There was a problem submitting your form.");
       }
     } catch (error) {
-      console.error("Submission Error:", error);
-      alert("Oops! There was a network error. Please try again later.");
+      alert("Oops! There was a network error.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   useEffect(() => {
-    // Scroll reveal observer
+    if (selectedProjectId) return;
+
     const revealObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -108,7 +149,6 @@ const App: React.FC = () => {
 
     document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
 
-    // Scroll spy observer for active links
     const sectionObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -125,396 +165,452 @@ const App: React.FC = () => {
       revealObserver.disconnect();
       sectionObserver.disconnect();
     };
-  }, [activeCategory]);
+  }, [activeCategory, selectedProjectId]);
 
   return (
     <div className={darkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-white dark:bg-black text-slate-900 dark:text-slate-100 transition-colors duration-500 font-sans selection:bg-primary-500 selection:text-white overflow-x-hidden">
         
-        {/* Navigation */}
+        {/* Navigation Bar */}
         <nav className="fixed top-0 w-full z-[100] backdrop-blur-xl bg-white/80 dark:bg-black/80 border-b border-slate-200 dark:border-white/10 h-20">
           <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
-            <a 
-              href="#home" 
-              onClick={(e) => handleNavClick(e, 'home')} 
+            <button 
+              onClick={() => setSelectedProjectId(null)} 
               className="text-xl font-bold tracking-tighter hover:scale-105 transition-transform"
             >
-              RAJEEV<span className="text-primary-500">.</span>
-            </a>
+              RAJEEV<span className="text-primary-500">.</span>KUMAR
+            </button>
             
-            {/* Desktop Nav */}
-            <div className="hidden md:flex items-center space-x-8 text-sm font-medium">
-              {navLinks.map((link) => (
-                <a 
-                  key={link.id}
-                  href={link.href} 
-                  onClick={(e) => handleNavClick(e, link.id)}
-                  aria-current={activeSection === link.id ? 'page' : undefined}
-                  className={`transition-all duration-300 relative group py-2 ${
-                    activeSection === link.id ? 'text-primary-500' : 'hover:text-primary-500 text-slate-500 dark:text-slate-400'
-                  }`}
+            <div className="hidden md:flex items-center space-x-12">
+              {selectedProjectId ? (
+                <button 
+                  onClick={closeProject}
+                  className="flex items-center space-x-2 text-sm font-medium text-slate-500 hover:text-primary-500 transition-colors"
                 >
-                  {link.label}
-                  <span className={`absolute -bottom-1 left-0 w-full h-0.5 bg-primary-500 origin-left transition-transform duration-300 ${activeSection === link.id ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`}></span>
-                </a>
-              ))}
+                  <ArrowLeft size={16} />
+                  <span>Back to Portfolio</span>
+                </button>
+              ) : (
+                navLinks.map((link) => (
+                  <a 
+                    key={link.id}
+                    href={link.href} 
+                    onClick={(e) => handleNavClick(e, link.id)}
+                    className={`text-sm font-medium transition-all relative group py-2 ${
+                      activeSection === link.id ? 'text-primary-500' : 'hover:text-primary-500 text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    {link.label}
+                  </a>
+                ))
+              )}
               
               <button 
                 onClick={toggleDarkMode}
-                className="ml-4 p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 transition-all active:scale-90"
-                aria-label="Toggle Dark Mode"
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
               >
                 {darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
             </div>
 
-            {/* Mobile Nav Toggle */}
             <div className="flex md:hidden items-center space-x-4">
-              <button 
+               <button 
                 onClick={toggleDarkMode}
                 className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
-                aria-label="Toggle Dark Mode"
               >
                 {darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
-              <button 
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 rounded-lg text-slate-600 dark:text-slate-300 transition-colors z-[110]"
-                aria-label={isMenuOpen ? "Close Menu" : "Open Menu"}
-              >
+              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2">
                 {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
             </div>
           </div>
-
-          {/* Mobile Menu Overlay */}
-          <div 
-            className={`fixed inset-0 z-[105] bg-white dark:bg-black transition-all duration-500 ease-in-out md:hidden flex flex-col justify-center items-center ${
-              isMenuOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'
-            }`}
-          >
-            <div className="flex flex-col space-y-8 text-center">
-              {navLinks.map((link) => (
-                <a 
-                  key={link.id}
-                  href={link.href} 
-                  onClick={(e) => handleNavClick(e, link.id)}
-                  className={`text-4xl font-bold tracking-tighter transition-colors ${
-                    activeSection === link.id ? 'text-primary-500' : 'text-slate-900 dark:text-white'
-                  }`}
-                >
-                  {link.label}
-                </a>
-              ))}
-            </div>
-          </div>
         </nav>
 
-        {/* Home Section (Hero) */}
-        <section id="home" className="pt-40 pb-20 px-6 min-h-[80vh] flex items-center">
-          <div className="max-w-7xl mx-auto w-full">
-            <div className="reveal opacity-0 translate-y-10 transition-all duration-1000">
-              <span className="inline-block px-4 py-1 rounded-full border border-primary-500 text-primary-500 text-xs font-semibold mb-6">
-                COMMUNICATION DESIGN STUDENT
-              </span>
-              <h1 className="text-6xl md:text-8xl font-extrabold tracking-tighter leading-[1.1] mb-8">
-                Crafting digital <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-indigo-500">narratives</span> through <br />
-                design and code.
-              </h1>
-              <p className="max-w-xl text-lg text-slate-500 dark:text-slate-400 leading-relaxed mb-10">
-                I'm Rajeev Kumar, a designer specializing in bridging the gap between aesthetics and functionality. Based in the intersection of Typography, UX, and 3D.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <a 
-                  href="#work" 
-                  onClick={(e) => handleNavClick(e, 'work')}
-                  className="px-8 py-4 bg-primary-500 hover:bg-primary-600 text-white rounded-full font-semibold transition-all hover:shadow-[0_0_20px_rgba(14,165,233,0.4)] hover:-translate-y-1"
-                >
-                  View My Work
-                </a>
+        {/* Case Study View */}
+        {selectedProject ? (
+          <main className="pt-32 pb-24 px-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="max-w-7xl mx-auto">
+              {/* Case Study Header */}
+              <div className="mb-12">
                 <button 
-                  onClick={fetchInspiration}
-                  disabled={loadingInspiration}
-                  className="flex items-center space-x-2 px-8 py-4 border border-slate-200 dark:border-white/10 rounded-full font-semibold hover:bg-slate-50 dark:hover:bg-white/5 transition-all hover:-translate-y-1"
+                  onClick={closeProject}
+                  className="text-xs font-bold uppercase tracking-widest text-primary-500 flex items-center space-x-2 mb-8 hover:translate-x-[-4px] transition-transform"
                 >
-                  <Sparkles size={18} className={loadingInspiration ? 'animate-spin' : ''} />
-                  <span>{loadingInspiration ? 'Generating...' : 'Get Inspiration'}</span>
+                  <ArrowLeft size={14} />
+                  <span>Back to Portfolio</span>
                 </button>
+                <span className="text-xs font-bold uppercase tracking-widest text-primary-500 mb-4 block">
+                  {selectedProject.category}
+                </span>
+                <h1 className="text-5xl md:text-8xl font-black tracking-tighter mb-8 leading-tight">
+                  {selectedProject.title}
+                </h1>
+                <p className="max-w-2xl text-xl text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                  {selectedProject.description}
+                </p>
               </div>
-            </div>
 
-            {/* AI Inspiration Card */}
-            {inspiration && (
-              <div className="mt-12 p-6 rounded-2xl border border-primary-500/30 bg-primary-500/5 backdrop-blur-sm max-w-2xl reveal opacity-0 translate-y-10 transition-all duration-700">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-2 text-primary-500">
-                    <Sparkles size={16} />
-                    <span className="text-xs font-bold uppercase tracking-wider">AI Challenge for you</span>
-                  </div>
-                  <button onClick={() => setInspiration(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={16} /></button>
+              {/* Hero Image */}
+              <div className="relative aspect-[16/8] w-full overflow-hidden rounded-[2.5rem] mb-24 shadow-2xl group cursor-zoom-in" onClick={() => setLightboxImage(selectedProject.imageUrl)}>
+                <img src={selectedProject.imageUrl} alt={selectedProject.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                  <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-opacity" size={48} />
                 </div>
-                <h3 className="text-xl font-bold mb-2">{inspiration.topic}</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">{inspiration.challenge}</p>
               </div>
-            )}
-          </div>
-        </section>
 
-        {/* Skills Section */}
-        <section id="skills" className="py-24 px-6 bg-slate-50 dark:bg-zinc-950/50">
-          <div className="max-w-7xl mx-auto">
-            <div className="mb-16 reveal opacity-0 translate-y-10 transition-all duration-1000">
-              <h2 className="text-4xl font-bold tracking-tighter mb-4">Core Expertise</h2>
-              <div className="w-20 h-1 bg-primary-500 rounded-full"></div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {SKILLS.map((skill, idx) => (
-                <div 
-                  key={idx} 
-                  className="reveal opacity-0 translate-y-10 p-8 rounded-3xl bg-white dark:bg-white/5 border border-slate-100 dark:border-white/10 transition-all hover:border-primary-500 group hover:shadow-xl dark:hover:shadow-primary-500/10"
-                  style={{ transitionDelay: `${idx * 100}ms` }}
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-primary-500/10 flex items-center justify-center text-primary-500 mb-6 group-hover:scale-110 transition-transform">
-                    {skill.name === 'Typography' && <Palette size={24} />}
-                    {skill.name === 'UX/UI Design' && <Layers size={24} />}
-                    {skill.name === '3D Design' && <Box size={24} />}
-                    {skill.name === 'Web Development' && <Code size={24} />}
-                  </div>
-                  <h3 className="text-xl font-bold mb-3">{skill.name}</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{skill.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Portfolio Section */}
-        <section id="work" className="py-24 px-6">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
-              <div className="reveal opacity-0 translate-y-10 transition-all duration-1000">
-                <h2 className="text-4xl font-bold tracking-tighter mb-4">Selected Work</h2>
-                <div className="w-20 h-1 bg-primary-500 rounded-full"></div>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
-                {categories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
-                    className={`px-5 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap active:scale-95 ${
-                      activeCategory === cat 
-                        ? 'bg-primary-500 text-white' 
-                        : 'bg-slate-100 dark:bg-white/10 text-slate-500 hover:bg-slate-200 dark:hover:bg-white/20'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {/* Corrected the typo in 'filteredProjects' array map */}
-              {filteredProjects.map((project) => (
-                <div 
-                  key={project.id}
-                  className="reveal opacity-0 translate-y-10 group cursor-pointer"
-                >
-                  <div className="relative aspect-[4/3] overflow-hidden rounded-3xl mb-6 bg-slate-100 dark:bg-white/5">
-                    <img 
-                      src={project.imageUrl} 
-                      alt={project.title} 
-                      loading="lazy"
-                      className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-black scale-50 group-hover:scale-100 transition-transform">
-                        <ChevronRight size={24} />
+              {/* Project Brief Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 mb-24">
+                <div className="lg:col-span-3 space-y-12">
+                  <div className="border-l-2 border-primary-500 pl-6">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6">Project Brief</h3>
+                    <div className="space-y-8">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">Role</p>
+                        <p className="font-bold">{selectedProject.role || 'Lead Designer'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">Timeline</p>
+                        <p className="font-bold">{selectedProject.timeline || '4 Weeks'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">Tools</p>
+                        <p className="font-bold">{selectedProject.tools?.join(', ') || 'Figma, React'}</p>
                       </div>
                     </div>
                   </div>
-                  <div>
-                    <span className="text-xs font-bold text-primary-500 uppercase tracking-widest">{project.category}</span>
-                    <h3 className="text-xl font-bold mt-1 group-hover:text-primary-500 transition-colors">{project.title}</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 line-clamp-2 leading-relaxed">{project.description}</p>
-                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
 
-        {/* About Section */}
-        <section id="about" className="py-24 px-6 bg-slate-50 dark:bg-zinc-950/50">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-              <div className="reveal opacity-0 translate-y-10 transition-all duration-1000">
-                <div className="relative group">
-                  <div className="aspect-square rounded-3xl overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-1000">
-                    <img src="https://picsum.photos/seed/rajeev/800/800" alt="Rajeev Kumar" className="object-cover w-full h-full" loading="lazy" />
+                <div className="lg:col-span-9 space-y-20">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+                    <div>
+                      <h3 className="text-2xl font-black tracking-tight mb-4">{selectedProject.conceptTitle || 'The Concept'}</h3>
+                      <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
+                        {selectedProject.conceptDescription || "Focusing on the core user journey, we stripped away the noise to prioritize meaningful interactions."}
+                      </p>
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black tracking-tight mb-4">{selectedProject.gridTitle || 'The Grid'}</h3>
+                      <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
+                        {selectedProject.gridDescription || "Every element sits on a strictly defined grid to maintain balance and rhythm throughout the experience."}
+                      </p>
+                    </div>
                   </div>
-                  <div className="absolute -bottom-6 -right-6 w-48 h-48 bg-primary-500 rounded-3xl -z-10 animate-pulse opacity-50"></div>
                 </div>
               </div>
-              
-              <div className="reveal opacity-0 translate-y-10 transition-all duration-1000">
-                <h2 className="text-4xl font-bold tracking-tighter mb-8">Beyond the pixels.</h2>
-                <div className="space-y-6 text-slate-500 dark:text-slate-400 leading-relaxed text-lg">
-                  <p>
-                    I believe that great design is not just about how it looks, but how it communicates and solves problems. My journey in communication design has led me to explore the intersection of traditional typography and modern web technologies.
-                  </p>
-                  <p>
-                    When I'm not pushing pixels or debugging code, you can find me wandering the streets with my camera or writing about the latest trends in technology and design on my blog.
-                  </p>
-                </div>
 
-                <div className="mt-12">
-                  <h4 className="font-bold mb-6 text-sm uppercase tracking-widest text-slate-400">Hobbies & Interests</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {HOBBIES.map((hobby, i) => (
-                      <div key={i} className="flex items-start space-x-4 p-4 rounded-2xl bg-white dark:bg-white/5 border border-slate-100 dark:border-white/10 hover:border-primary-500/50 transition-colors">
-                        <div className="text-primary-500 mt-1">{hobby.icon}</div>
-                        <div>
-                          <p className="font-bold text-sm">{hobby.name}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{hobby.description}</p>
+              {/* Process Gallery */}
+              {selectedProject.processGallery && selectedProject.processGallery.length > 0 && (
+                <div className="mb-24">
+                  <h2 className="text-3xl font-black tracking-tighter mb-12">Process Gallery</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {selectedProject.processGallery.map((item, idx) => (
+                      <div key={idx} className="space-y-4 group">
+                        <div 
+                          className="relative aspect-video overflow-hidden rounded-3xl bg-slate-100 dark:bg-zinc-900 cursor-zoom-in"
+                          onClick={() => setLightboxImage(item.url)}
+                        >
+                          <img src={item.url} alt={item.caption} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all flex items-center justify-center">
+                            <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-opacity" size={24} />
+                          </div>
                         </div>
+                        <p className="text-xs italic text-slate-400 px-2 leading-relaxed">{item.caption}</p>
                       </div>
                     ))}
                   </div>
                 </div>
+              )}
+
+              {/* Explore Other Works */}
+              <div className="pt-24 border-t border-slate-100 dark:border-white/10 text-center">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-4">Want to see more?</p>
+                <h2 className="text-5xl font-black tracking-tighter mb-12">Explore Other Works</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  {PROJECTS.filter(p => p.id !== selectedProjectId).slice(0, 3).map(p => (
+                    <button 
+                      key={p.id}
+                      onClick={() => openProject(p.id)}
+                      className="group text-left"
+                    >
+                      <div className="aspect-[4/3] rounded-2xl overflow-hidden mb-4">
+                        <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
+                      </div>
+                      <h4 className="font-bold group-hover:text-primary-500 transition-colors">{p.title}</h4>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* Contact Section */}
-        <section id="contact" className="py-24 px-6 overflow-hidden min-h-screen flex items-center relative">
-          <div className="absolute -top-40 -left-40 w-80 h-80 bg-primary-500/10 rounded-full blur-3xl -z-10"></div>
-          <div className="absolute -bottom-40 -right-40 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl -z-10"></div>
-          
-          <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            
-            <div className="reveal opacity-0 translate-y-10 transition-all duration-1000 text-left">
-              <h2 className="text-5xl md:text-7xl font-bold tracking-tighter mb-8 leading-none">Let's build something <span className="italic font-light text-primary-500">extraordinary</span>.</h2>
-              <p className="text-lg text-slate-500 dark:text-slate-400 mb-12 max-w-lg">
-                Always looking for new challenges and creative collaborations. Feel free to reach out for a project or just a coffee chat.
-              </p>
-              
-              <div className="space-y-6">
-                <a href="mailto:hello@rajeevkumar.design" className="flex items-center space-x-4 group w-fit">
-                  <div className="p-3 rounded-full bg-slate-100 dark:bg-white/5 group-hover:bg-primary-500 group-hover:text-white transition-all">
-                    <Mail size={20} />
-                  </div>
-                  <span className="font-medium">hello@rajeevkumar.design</span>
-                </a>
-              </div>
-
-              <div className="mt-12 flex space-x-6">
-                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="p-4 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-primary-500 hover:text-white transition-all hover:-translate-y-2"><Instagram size={24} /></a>
-                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="p-4 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-primary-500 hover:text-white transition-all hover:-translate-y-2"><Linkedin size={24} /></a>
-                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="p-4 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-primary-500 hover:text-white transition-all hover:-translate-y-2"><Twitter size={24} /></a>
-              </div>
-            </div>
-
-            <div className="reveal opacity-0 translate-y-10 transition-all duration-1000 delay-200">
-              <div className="p-8 md:p-10 rounded-[2.5rem] bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-white/10 backdrop-blur-sm">
-                {submitted ? (
-                  <div className="py-12 flex flex-col items-center text-center space-y-4 animate-in fade-in zoom-in duration-500">
-                    <div className="w-16 h-16 bg-primary-500/20 text-primary-500 rounded-full flex items-center justify-center mb-4">
-                      <CheckCircle2 size={40} />
-                    </div>
-                    <h3 className="text-2xl font-bold">Message Sent!</h3>
-                    <p className="text-slate-500 dark:text-slate-400">Thanks for reaching out, Rajeev will get back to you soon.</p>
-                    <button 
-                      onClick={() => setSubmitted(false)}
-                      className="mt-6 text-primary-500 font-semibold hover:underline"
+          </main>
+        ) : (
+          /* Main Portfolio Landing Page */
+          <>
+            <section id="home" className="pt-40 pb-20 px-6 min-h-[80vh] flex items-center relative overflow-hidden">
+               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary-500/10 rounded-full blur-[120px] -z-10 animate-pulse"></div>
+              <div className="max-w-7xl mx-auto w-full">
+                <div className="reveal opacity-0 translate-y-10 transition-all duration-1000">
+                  <span className="inline-block px-4 py-1 rounded-full border border-primary-500 text-primary-500 text-xs font-semibold mb-6">
+                    COMMUNICATION DESIGN STUDENT
+                  </span>
+                  <h1 className="text-6xl md:text-9xl font-black tracking-tighter leading-[0.9] mb-12">
+                    Crafting digital <br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-indigo-500">narratives</span><br />
+                    through design.
+                  </h1>
+                  <p className="max-w-xl text-lg text-slate-500 dark:text-slate-400 leading-relaxed mb-10">
+                    I'm Rajeev Kumar, a designer specializing in bridging the gap between aesthetics and functionality. Based in the intersection of Typography, UX, and 3D.
+                  </p>
+                  <div className="flex flex-wrap gap-4">
+                    <a 
+                      href="#work" 
+                      onClick={(e) => handleNavClick(e, 'work')}
+                      className="px-10 py-5 bg-primary-500 hover:bg-primary-600 text-white rounded-full font-bold transition-all hover:shadow-[0_0_40px_rgba(14,165,233,0.3)] hover:-translate-y-1"
                     >
-                      Send another message
+                      View My Work
+                    </a>
+                    <button 
+                      onClick={fetchInspiration}
+                      disabled={loadingInspiration}
+                      className="flex items-center space-x-2 px-10 py-5 border border-slate-200 dark:border-white/10 rounded-full font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-all hover:-translate-y-1"
+                    >
+                      <Sparkles size={18} className={loadingInspiration ? 'animate-spin' : ''} />
+                      <span>{loadingInspiration ? 'Thinking...' : 'Get Inspiration'}</span>
                     </button>
                   </div>
-                ) : (
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="space-y-2">
-                      <label htmlFor="name" className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Name</label>
-                      <input 
-                        type="text" 
-                        id="name"
-                        name="name"
-                        required
-                        value={formState.name}
-                        onChange={handleFormChange}
-                        placeholder="Your Name"
-                        className="w-full px-6 py-4 rounded-2xl bg-white dark:bg-black border border-slate-200 dark:border-white/10 focus:border-primary-500 dark:focus:border-primary-500 focus:ring-0 transition-all outline-none"
-                      />
+                </div>
+
+                {inspiration && (
+                  <div className="mt-12 p-8 rounded-[2rem] border border-primary-500/30 bg-primary-500/5 backdrop-blur-xl max-w-2xl reveal opacity-0 translate-y-10 transition-all duration-700 animate-in fade-in zoom-in">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-2 text-primary-500">
+                        <Sparkles size={16} />
+                        <span className="text-xs font-bold uppercase tracking-widest">AI Challenge</span>
+                      </div>
+                      <button onClick={() => setInspiration(null)} className="text-slate-400 hover:text-white"><X size={16} /></button>
                     </div>
-                    <div className="space-y-2">
-                      <label htmlFor="email" className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Email</label>
-                      <input 
-                        type="email" 
-                        id="email"
-                        name="email"
-                        required
-                        value={formState.email}
-                        onChange={handleFormChange}
-                        placeholder="hello@example.com"
-                        className="w-full px-6 py-4 rounded-2xl bg-white dark:bg-black border border-slate-200 dark:border-white/10 focus:border-primary-500 dark:focus:border-primary-500 focus:ring-0 transition-all outline-none"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="message" className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Message</label>
-                      <textarea 
-                        id="message"
-                        name="message"
-                        required
-                        rows={4}
-                        value={formState.message}
-                        onChange={handleFormChange}
-                        placeholder="Tell me about your project..."
-                        className="w-full px-6 py-4 rounded-2xl bg-white dark:bg-black border border-slate-200 dark:border-white/10 focus:border-primary-500 dark:focus:border-primary-500 focus:ring-0 transition-all outline-none resize-none"
-                      ></textarea>
-                    </div>
-                    
-                    <button 
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full group relative inline-flex items-center justify-center p-0.5 overflow-hidden text-sm font-medium text-slate-900 rounded-2xl bg-gradient-to-br from-primary-500 to-indigo-500 hover:text-white dark:text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-                    >
-                      <span className="relative w-full px-10 py-5 transition-all ease-in duration-75 bg-white dark:bg-black rounded-[1.2rem] group-hover:bg-opacity-0">
-                        <span className="flex items-center justify-center space-x-3 text-lg font-bold">
-                          {isSubmitting ? (
-                            <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-                          ) : (
-                            <>
-                              <Send size={20} />
-                              <span>Send Message</span>
-                            </>
-                          )}
-                        </span>
-                      </span>
-                    </button>
-                  </form>
+                    <h3 className="text-2xl font-black mb-3">{inspiration.topic}</h3>
+                    <p className="text-slate-500 dark:text-slate-400 leading-relaxed">{inspiration.challenge}</p>
+                  </div>
                 )}
               </div>
-            </div>
-          </div>
-        </section>
+            </section>
+
+            <section id="work" className="py-24 px-6 bg-slate-50/50 dark:bg-zinc-950/20">
+              <div className="max-w-7xl mx-auto">
+                <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
+                  <div className="reveal opacity-0 translate-y-10 transition-all duration-1000">
+                    <h2 className="text-5xl font-black tracking-tighter mb-4">Selected Work</h2>
+                    <div className="w-20 h-1.5 bg-primary-500 rounded-full"></div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+                    {categories.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setActiveCategory(cat)}
+                        className={`px-6 py-2.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                          activeCategory === cat 
+                            ? 'bg-primary-500 text-white' 
+                            : 'bg-white dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                  {filteredProjects.map((project) => (
+                    <div 
+                      key={project.id}
+                      onClick={() => openProject(project.id)}
+                      className="reveal opacity-0 translate-y-10 group cursor-pointer"
+                    >
+                      <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] mb-6 bg-slate-200 dark:bg-zinc-900 shadow-lg">
+                        <img 
+                          src={project.imageUrl} 
+                          alt={project.title} 
+                          className="object-cover w-full h-full transition-transform duration-1000 group-hover:scale-110"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                          <div className="px-8 py-3 rounded-full bg-white text-black font-bold scale-50 group-hover:scale-100 transition-all duration-500 flex items-center space-x-2">
+                            <span>View Case Study</span>
+                            <ChevronRight size={18} />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="px-2">
+                        <span className="text-[10px] font-bold text-primary-500 uppercase tracking-[0.2em] mb-2 block">{project.category}</span>
+                        <h3 className="text-2xl font-black mb-2 group-hover:text-primary-500 transition-colors">{project.title}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">{project.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <section id="skills" className="py-24 px-6 relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-[100px] -z-10"></div>
+              <div className="max-w-7xl mx-auto">
+                <div className="mb-16 reveal opacity-0 translate-y-10 transition-all duration-1000">
+                  <h2 className="text-5xl font-black tracking-tighter mb-4">Core Expertise</h2>
+                  <div className="w-20 h-1.5 bg-primary-500 rounded-full"></div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                  {SKILLS.map((skill, idx) => (
+                    <div 
+                      key={idx} 
+                      className="reveal opacity-0 translate-y-10 p-10 rounded-[2.5rem] bg-white dark:bg-zinc-900/50 border border-slate-100 dark:border-white/5 transition-all hover:border-primary-500 group hover:shadow-2xl"
+                      style={{ transitionDelay: `${idx * 100}ms` }}
+                    >
+                      <div className="w-14 h-14 rounded-2xl bg-primary-500/10 flex items-center justify-center text-primary-500 mb-8 group-hover:scale-110 group-hover:bg-primary-500 group-hover:text-white transition-all duration-500">
+                        {skill.name === 'Typography' && <Palette size={28} />}
+                        {skill.name === 'UX/UI Design' && <Layers size={28} />}
+                        {skill.name === '3D Design' && <Box size={28} />}
+                        {skill.name === 'Web Development' && <Code size={28} />}
+                      </div>
+                      <h3 className="text-2xl font-black mb-4">{skill.name}</h3>
+                      <p className="text-slate-500 dark:text-slate-400 leading-relaxed">{skill.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <section id="about" className="py-24 px-6 bg-slate-50/50 dark:bg-zinc-950/20">
+              <div className="max-w-7xl mx-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+                  <div className="reveal opacity-0 translate-y-10 transition-all duration-1000">
+                    <div className="relative group p-4">
+                      <div className="aspect-[4/5] rounded-[3rem] overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-1000 shadow-2xl relative z-10">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop" alt="Rajeev Kumar" className="object-cover w-full h-full" />
+                      </div>
+                      <div className="absolute -bottom-4 -right-4 w-full h-full border-2 border-primary-500 rounded-[3.5rem] -z-10 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform duration-700"></div>
+                    </div>
+                  </div>
+                  
+                  <div className="reveal opacity-0 translate-y-10 transition-all duration-1000">
+                    <h2 className="text-5xl font-black tracking-tighter mb-8 leading-tight">Driven by precision,<br />defined by curiosity.</h2>
+                    <div className="space-y-6 text-slate-500 dark:text-slate-400 leading-relaxed text-lg font-medium">
+                      <p>
+                        I believe that great design is not just about how it looks, but how it communicates and solves problems. My journey in communication design has led me to explore the intersection of traditional typography and modern web technologies.
+                      </p>
+                      <p>
+                        When I'm not pushing pixels or debugging code, you can find me wandering the streets with my camera or writing about the latest trends in technology and design.
+                      </p>
+                    </div>
+
+                    <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 gap-8">
+                      {HOBBIES.map((hobby, i) => (
+                        <div key={i} className="flex items-start space-x-6">
+                          <div className="p-4 rounded-2xl bg-primary-500/10 text-primary-500">{hobby.icon}</div>
+                          <div>
+                            <p className="font-black text-lg">{hobby.name}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{hobby.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section id="contact" className="py-24 px-6 flex items-center relative min-h-screen">
+              <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+                <div className="reveal opacity-0 translate-y-10 transition-all duration-1000">
+                  <h2 className="text-6xl md:text-8xl font-black tracking-tighter mb-10 leading-[0.9]">Let's create something <span className="text-primary-500 italic font-light">iconic</span>.</h2>
+                  <p className="text-xl text-slate-500 dark:text-slate-400 mb-12 max-w-lg leading-relaxed">
+                    Always looking for new challenges and creative collaborations. Feel free to reach out.
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <a href="mailto:hello@rajeevkumar.design" className="text-2xl font-black hover:text-primary-500 transition-colors underline underline-offset-8">hello@rajeevkumar.design</a>
+                    <div className="flex space-x-8 pt-8">
+                      <a href="#" className="p-4 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-primary-500 hover:text-white transition-all hover:-translate-y-2"><Instagram size={24} /></a>
+                      <a href="#" className="p-4 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-primary-500 hover:text-white transition-all hover:-translate-y-2"><Linkedin size={24} /></a>
+                      <a href="#" className="p-4 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-primary-500 hover:text-white transition-all hover:-translate-y-2"><Twitter size={24} /></a>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="reveal opacity-0 translate-y-10 transition-all duration-1000 delay-200">
+                  <div className="p-10 md:p-14 rounded-[3.5rem] bg-white dark:bg-zinc-900 shadow-2xl border border-slate-100 dark:border-white/5">
+                    {submitted ? (
+                      <div className="py-20 flex flex-col items-center text-center space-y-6">
+                        <div className="w-20 h-20 bg-primary-500/20 text-primary-500 rounded-full flex items-center justify-center">
+                          <CheckCircle2 size={48} />
+                        </div>
+                        <h3 className="text-3xl font-black">Message Received!</h3>
+                        <p className="text-slate-500 dark:text-slate-400">Rajeev will get back to you shortly.</p>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleSubmit} className="space-y-8">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 ml-2">Name</label>
+                          <input 
+                            name="name" required value={formState.name} onChange={handleFormChange}
+                            placeholder="Your Name"
+                            className="w-full px-8 py-5 rounded-2xl bg-slate-50 dark:bg-black border border-transparent focus:border-primary-500 transition-all outline-none"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 ml-2">Email</label>
+                          <input 
+                            name="email" type="email" required value={formState.email} onChange={handleFormChange}
+                            placeholder="Email Address"
+                            className="w-full px-8 py-5 rounded-2xl bg-slate-50 dark:bg-black border border-transparent focus:border-primary-500 transition-all outline-none"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 ml-2">Message</label>
+                          <textarea 
+                            name="message" required rows={4} value={formState.message} onChange={handleFormChange}
+                            placeholder="Brief your project..."
+                            className="w-full px-8 py-5 rounded-2xl bg-slate-50 dark:bg-black border border-transparent focus:border-primary-500 transition-all outline-none resize-none"
+                          ></textarea>
+                        </div>
+                        <button 
+                          type="submit" disabled={isSubmitting}
+                          className="w-full py-6 bg-primary-500 hover:bg-primary-600 text-white rounded-2xl font-black text-xl transition-all flex items-center justify-center space-x-3 shadow-xl hover:shadow-primary-500/30"
+                        >
+                          {isSubmitting ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (
+                            <><Send size={24} /> <span>Send Message</span></>
+                          )}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* Lightbox Overlay */}
+        {lightboxImage && <Lightbox imageUrl={lightboxImage} onClose={() => setLightboxImage(null)} />}
+
+        {/* Floating Chat Button (Optional Visual) */}
+        {!selectedProjectId && (
+           <button className="fixed bottom-10 right-10 w-16 h-16 bg-primary-500 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50">
+            <MessageCircle size={28} />
+          </button>
+        )}
 
         {/* Footer */}
-        <footer className="py-12 px-6 border-t border-slate-100 dark:border-white/10">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between text-sm text-slate-500 gap-6">
-            <div className="flex flex-col items-center md:items-start text-center md:text-left">
-              <p>© 2024 Rajeev Kumar. Built for Communication Design Excellence.</p>
-              <p className="text-xs text-slate-400 mt-1 italic">Vercel-optimized architecture for high performance.</p>
+        <footer className="py-20 px-6 border-t border-slate-100 dark:border-white/5">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between text-[11px] font-bold uppercase tracking-widest text-slate-400 gap-12">
+            <p>© 2026 RAJEEV KUMAR. ALL RIGHTS RESERVED.</p>
+            <div className="flex space-x-12">
+              <button onClick={() => setSelectedProjectId(null)} className="hover:text-primary-500 transition-colors">PROJECTS</button>
+              <button className="hover:text-primary-500 transition-colors">STORY</button>
+              <button className="hover:text-primary-500 transition-colors">TOOLKIT</button>
             </div>
-            <div className="flex space-x-8">
-              <a href="#work" onClick={(e) => handleNavClick(e, 'work')} className="hover:text-primary-500 transition-colors">Work</a>
-              <a href="#skills" onClick={(e) => handleNavClick(e, 'skills')} className="hover:text-primary-500 transition-colors">Expertise</a>
-              <a href="#about" onClick={(e) => handleNavClick(e, 'about')} className="hover:text-primary-500 transition-colors">About</a>
-              <a href="#home" onClick={(e) => handleNavClick(e, 'home')} className="hover:text-primary-500 transition-colors font-bold">Back to top</a>
-            </div>
+            <p className="text-right">BUILT WITH REACT, TAILWIND & GEMINI AI</p>
           </div>
         </footer>
 

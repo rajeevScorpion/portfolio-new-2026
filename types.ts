@@ -5,6 +5,18 @@ export interface Project {
   category: 'Typography' | 'UX/UI' | '3D Design' | 'Web Development';
   imageUrl: string;
   description: string;
+  // Case Study fields
+  role?: string;
+  timeline?: string;
+  tools?: string[];
+  conceptTitle?: string;
+  conceptDescription?: string;
+  gridTitle?: string;
+  gridDescription?: string;
+  processGallery?: {
+    url: string;
+    caption: string;
+  }[];
 }
 
 export interface Skill {
