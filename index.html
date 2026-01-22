@@ -1,0 +1,90 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rajeev Kumar | Communication Designer & Developer</title>
+    
+    <!-- SEO & Meta Tags -->
+    <meta name="description" content="Portfolio of Rajeev Kumar, a Communication Design student specializing in Typography, UX/UI, 3D Design, and Web Development." />
+    <meta name="keywords" content="Rajeev Kumar, Communication Design, Typography, UX UI Design, 3D Design, Web Development, Portfolio" />
+    <meta name="author" content="Rajeev Kumar" />
+    <meta name="theme-color" content="#0ea5e9" />
+    <link rel="canonical" href="#" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Rajeev Kumar | Communication Designer" />
+    <meta property="og:description" content="Exploring the intersection of design and technology." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://picsum.photos/seed/rajeev/1200/630" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              primary: {
+                50: '#f0f9ff',
+                100: '#e0f2fe',
+                500: '#0ea5e9',
+                600: '#0284c7',
+                900: '#0c4a6e',
+              },
+            },
+          },
+        },
+      }
+    </script>
+    <style>
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 5rem;
+      }
+      body {
+        font-family: 'Inter', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      ::selection {
+        background: #0ea5e9;
+        color: white;
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      /* Focus visible styles for accessibility */
+      :focus-visible {
+        outline: 2px solid #0ea5e9;
+        outline-offset: 4px;
+      }
+    </style>
+    <script type="importmap">
+    {
+      "imports": {
+        "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+        "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+        "react/": "https://esm.sh/react@^19.2.3/",
+        "react": "https://esm.sh/react@^19.2.3",
+        "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+      }
+    }
+    </script>
+  </head>
+  <body class="bg-white dark:bg-black transition-colors duration-300 antialiased overflow-x-hidden">
+    <div id="root"></div>
+  </body>
+</html>
