@@ -1,18 +1,19 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Sun, Moon, Palette, Layers, Box, Code, ChevronRight, Mail, Instagram, Linkedin, Twitter, Sparkles, Menu, X, Send, CheckCircle2, ArrowLeft, Maximize2, MessageCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Sun, Moon, Palette, Layers, Box, Code, ChevronRight, Mail, Instagram, Linkedin, Twitter, Sparkles, Menu, X, Send, CheckCircle2, ArrowLeft, Maximize2, MessageCircle, Bot, User, Loader2 } from 'lucide-react';
 import { SKILLS, PROJECTS, HOBBIES } from './constants';
 import { getDesignInspiration } from './services/geminiService';
 import { Project, Inspiration } from './types';
+import { GoogleGenAI } from "@google/genai";
 
 const categories = ['All', 'Typography', 'UX/UI', '3D Design', 'Web Development'];
 
 const Lightbox: React.FC<{ imageUrl: string; onClose: () => void }> = ({ imageUrl, onClose }) => {
   return (
-    <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out" onClick={onClose}>
+    <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out" onClick={onClose}>
       <button 
         className="absolute top-8 right-8 text-white/50 hover:text-white transition-colors"
-        onClick={onClose}
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
       >
         <X size={32} />
       </button>
@@ -21,6 +22,114 @@ const Lightbox: React.FC<{ imageUrl: string; onClose: () => void }> = ({ imageUr
         alt="Zoomed project image" 
         className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-in zoom-in duration-300" 
       />
+    </div>
+  );
+};
+
+const ChatBot: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const [messages, setMessages] = useState<{ role: 'user' | 'model'; text: string }[]>([
+    { role: 'model', text: "Hi! I'm Rajeev's AI assistant. How can I help you explore his design work today?" }
+  ]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const chatRef = useRef<any>(null);
+
+  useEffect(() => {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    chatRef.current = ai.chats.create({
+      model: 'gemini-3-flash-preview',
+      config: {
+        systemInstruction: "You are Rajeev Kumar's professional AI assistant. Rajeev is a Communication Design student specializing in Typography, UX/UI, 3D, and Web Development. Be helpful, concise, and professional. Mention his expertise in 'Swiss design principles' or 'modular UI' if relevant. Keep answers under 3 sentences.",
+      },
+    });
+  }, []);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isTyping]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isTyping) return;
+
+    const userMessage = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+    setIsTyping(true);
+
+    try {
+      const response = await chatRef.current.sendMessage({ message: userMessage });
+      const botText = response.text;
+      setMessages(prev => [...prev, { role: 'model', text: botText || "I'm having trouble thinking right now. Could you try again?" }]);
+    } catch (error) {
+      console.error("Chat Error:", error);
+      setMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error. Please try again later." }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-28 right-6 md:right-10 w-[calc(100vw-3rem)] md:w-96 h-[500px] bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/10 flex flex-col overflow-hidden z-[200] animate-in slide-in-from-bottom-10 fade-in duration-300">
+      <div className="p-6 bg-primary-500 text-white flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-white/20 rounded-full">
+            <Bot size={20} />
+          </div>
+          <div>
+            <p className="font-bold leading-none">Rajeev AI</p>
+            <p className="text-[10px] opacity-70 uppercase tracking-widest mt-1">Online Assistant</p>
+          </div>
+        </div>
+        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+          <X size={20} />
+        </button>
+      </div>
+
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
+        {messages.map((msg, idx) => (
+          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[80%] p-4 rounded-2xl text-sm leading-relaxed ${
+              msg.role === 'user' 
+                ? 'bg-primary-500 text-white rounded-tr-none' 
+                : 'bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-slate-100 rounded-tl-none'
+            }`}>
+              {msg.text}
+            </div>
+          </div>
+        ))}
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="bg-slate-100 dark:bg-white/5 p-4 rounded-2xl rounded-tl-none flex items-center space-x-2">
+              <Loader2 size={16} className="animate-spin text-primary-500" />
+              <span className="text-xs text-slate-400">Assistant is thinking...</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-black/20">
+        <div className="relative">
+          <input 
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask about my work..."
+            className="w-full px-6 py-4 pr-14 rounded-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-white/5 focus:border-primary-500 transition-all outline-none text-sm"
+          />
+          <button 
+            type="submit"
+            disabled={!input.trim() || isTyping}
+            className="absolute right-2 top-2 p-3 bg-primary-500 text-white rounded-full hover:bg-primary-600 disabled:opacity-50 transition-all active:scale-95"
+          >
+            <Send size={16} />
+          </button>
+        </div>
+      </form>
     </div>
   );
 };
@@ -34,6 +143,7 @@ const App: React.FC = () => {
   const [loadingInspiration, setLoadingInspiration] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Form State
   const [formState, setFormState] = useState({ name: '', email: '', message: '' });
@@ -54,6 +164,9 @@ const App: React.FC = () => {
   ];
 
   const handleNavClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    setIsMenuOpen(false);
+
     if (selectedProjectId) {
       setSelectedProjectId(null);
       setTimeout(() => {
@@ -65,10 +178,8 @@ const App: React.FC = () => {
       return;
     }
 
-    e.preventDefault();
     const element = document.getElementById(id);
     if (element) {
-      setIsMenuOpen(false);
       setActiveSection(id);
       const offset = 80;
       const bodyRect = document.body.getBoundingClientRect().top;
@@ -137,6 +248,14 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+  }, [isMenuOpen]);
+
+  useEffect(() => {
     if (selectedProjectId) return;
 
     const revealObserver = new IntersectionObserver((entries) => {
@@ -175,7 +294,7 @@ const App: React.FC = () => {
         <nav className="fixed top-0 w-full z-[100] backdrop-blur-xl bg-white/80 dark:bg-black/80 border-b border-slate-200 dark:border-white/10 h-20">
           <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
             <button 
-              onClick={() => setSelectedProjectId(null)} 
+              onClick={() => { setSelectedProjectId(null); setIsMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
               className="text-xl font-bold tracking-tighter hover:scale-105 transition-transform"
             >
               RAJEEV<span className="text-primary-500">.</span>KUMAR
@@ -208,24 +327,78 @@ const App: React.FC = () => {
               <button 
                 onClick={toggleDarkMode}
                 className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
+                aria-label="Toggle dark mode"
               >
                 {darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
             </div>
 
             <div className="flex md:hidden items-center space-x-4">
-               <button 
+              <button 
                 onClick={toggleDarkMode}
                 className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
               >
                 {darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
-              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2">
-                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              <button 
+                onClick={() => setIsMenuOpen(!isMenuOpen)} 
+                className="p-2 text-slate-600 dark:text-slate-300 z-[120]"
+                aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+              >
+                {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
               </button>
             </div>
           </div>
         </nav>
+
+        {/* Mobile Navigation - Fly-in Offcanvas */}
+        <div 
+          className={`fixed inset-0 z-[115] transition-opacity duration-500 md:hidden ${
+            isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
+          onClick={() => setIsMenuOpen(false)}
+        >
+          {/* Overlay Backdrop */}
+          <div className="absolute inset-0 bg-white/90 dark:bg-black/95 backdrop-blur-lg"></div>
+          
+          {/* Menu Panel */}
+          <div 
+            className={`absolute right-0 top-0 h-full w-full max-w-sm bg-white dark:bg-black shadow-2xl transition-transform duration-500 ease-in-out p-8 flex flex-col justify-center items-center text-center ${
+              isMenuOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Dedicated Close Button for Offcanvas */}
+            <button 
+              onClick={() => setIsMenuOpen(false)}
+              className="absolute top-8 right-8 p-3 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-primary-500 hover:bg-slate-200 dark:hover:bg-white/10 transition-all active:scale-95"
+              aria-label="Close navigation"
+            >
+              <X size={32} />
+            </button>
+
+            <div className="flex flex-col space-y-8">
+              {navLinks.map((link) => (
+                <a 
+                  key={link.id}
+                  href={link.href} 
+                  onClick={(e) => handleNavClick(e, link.id)}
+                  className={`text-5xl font-black tracking-tighter transition-all hover:scale-105 ${
+                    activeSection === link.id ? 'text-primary-500' : 'text-slate-900 dark:text-white'
+                  }`}
+                >
+                  {link.label}
+                </a>
+              ))}
+            </div>
+            
+            <div className="mt-16 pt-16 border-t border-slate-100 dark:border-white/5 w-full flex justify-center space-x-8">
+              <a href="#" className="p-4 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-primary-500 transition-colors"><Instagram size={28} /></a>
+              <a href="#" className="p-4 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-primary-500 transition-colors"><Linkedin size={28} /></a>
+              <a href="#" className="p-4 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-primary-500 transition-colors"><Twitter size={28} /></a>
+            </div>
+          </div>
+        </div>
 
         {/* Case Study View */}
         {selectedProject ? (
@@ -594,10 +767,16 @@ const App: React.FC = () => {
         {/* Lightbox Overlay */}
         {lightboxImage && <Lightbox imageUrl={lightboxImage} onClose={() => setLightboxImage(null)} />}
 
-        {/* Floating Chat Button (Optional Visual) */}
+        {/* AI Chat Bot */}
+        {isChatOpen && <ChatBot onClose={() => setIsChatOpen(false)} />}
+
+        {/* Floating Chat Button */}
         {!selectedProjectId && (
-           <button className="fixed bottom-10 right-10 w-16 h-16 bg-primary-500 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50">
-            <MessageCircle size={28} />
+           <button 
+            onClick={() => setIsChatOpen(!isChatOpen)}
+            className={`fixed bottom-10 right-10 w-16 h-16 bg-primary-500 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-[210] ${isChatOpen ? 'rotate-90' : 'rotate-0'}`}
+          >
+            {isChatOpen ? <X size={28} /> : <MessageCircle size={28} />}
           </button>
         )}
 
@@ -606,7 +785,7 @@ const App: React.FC = () => {
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between text-[11px] font-bold uppercase tracking-widest text-slate-400 gap-12">
             <p>© 2026 RAJEEV KUMAR. ALL RIGHTS RESERVED.</p>
             <div className="flex space-x-12">
-              <button onClick={() => setSelectedProjectId(null)} className="hover:text-primary-500 transition-colors">PROJECTS</button>
+              <button onClick={() => { setSelectedProjectId(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-primary-500 transition-colors">PROJECTS</button>
               <button className="hover:text-primary-500 transition-colors">STORY</button>
               <button className="hover:text-primary-500 transition-colors">TOOLKIT</button>
             </div>
